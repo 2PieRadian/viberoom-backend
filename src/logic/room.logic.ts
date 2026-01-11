@@ -1,5 +1,9 @@
 import type { Socket } from "socket.io";
-import type { CreateRoomData, JoinRoomData } from "../lib/types.js";
+import type {
+  CreateRoomData,
+  Interaction,
+  JoinRoomData,
+} from "../lib/types.js";
 import { generateRoomId, getRoomCount } from "../utils/roomUtils.js";
 import { roomsStore, type Member } from "../store/rooms.store.js";
 
@@ -13,7 +17,7 @@ export function createRoomListener(socket: Socket) {
       roomName,
       currentTime: 0,
       isPlaying: false,
-      videoId: "",
+      videoId: "Csy6Vd33cYI",
       members: new Map<string, Member>([
         [socket.id, { socketId: socket.id, username }],
       ]),
@@ -23,23 +27,14 @@ export function createRoomListener(socket: Socket) {
 
     socket.emit("create-room-success", { roomId });
 
-    const roomState = roomsStore.get(roomId);
-    socket.emit("create-room-state", roomState);
-
     // Logs
     console.log("---------------------");
     console.log(
       "Room created: ",
       roomName,
-      "with members: ",
-      roomsStore.get(roomId)?.members,
-      "in room: ",
-      roomId
+      "roomData: ",
+      roomsStore.get(roomId)
     );
-    console.log("Rooms: ", roomsStore);
-    console.log("Total rooms: ", getRoomCount());
-    console.log("Total rooms in socket: ", socket.rooms.size);
-    console.log("Socket.rooms : ", socket.rooms);
     console.log("---------------------");
   });
 }
@@ -57,8 +52,6 @@ export function joinRoomListener(socket: Socket) {
     room.members.set(socket.id, { socketId: socket.id, username });
     socket.join(roomId);
 
-    socket.emit("join-room-success", { roomId });
-
     const roomState = roomsStore.get(roomId);
 
     const properRoomState = {
@@ -66,17 +59,16 @@ export function joinRoomListener(socket: Socket) {
       members: Array.from(roomState?.members.values() || []),
     };
 
-    // socket.emit("join-room-state", properRoomState);
+    socket.emit("join-room-success", properRoomState);
+
+    // Notify other members about the new member
     socket.nsp.to(roomId).emit("room-state-update", properRoomState);
 
     // Logs
     console.log("---------------------");
-    console.log("User joined room: ", roomId, "name: ", room.roomName);
+    console.log(`${username} joined room: ${room.roomName}`);
     console.log("Members: ", room.members);
-    console.log("Total rooms: ", getRoomCount());
-    console.log("Total rooms in socket: ", socket.rooms.size);
-    console.log("Socket.rooms : ", socket.rooms);
-    console.log("properRoomState : ", properRoomState);
+    console.log("Room State : ", properRoomState);
     console.log("---------------------");
     // console.log("User joined room: ", roomId, "with members: ", room.members);
     // console.log("Total rooms: ", getRoomCount());
@@ -93,12 +85,15 @@ export function leaveRoomListener(socket: Socket) {
     socket.leave(roomId);
     console.log(socket.id, "left room:", roomId);
 
+    if (room.members.size === 0) {
+      roomsStore.delete(roomId);
+      console.log("Room deleted as no members left:", roomId);
+    }
+
     //Logs
     console.log("---------------------");
     console.log("User left room: ", roomId, "name: ", room.roomName);
     console.log("Total rooms: ", getRoomCount());
-    console.log("Total rooms in socket: ", socket.rooms.size);
-    console.log("Socket.rooms : ", socket.rooms);
     console.log("---------------------");
   });
 }
@@ -111,7 +106,81 @@ export function checkRoomExistsListener(socket: Socket) {
     // Logs
     console.log("---------------------");
     console.log("Check room exists for roomId:", roomId, "Exists:", roomExists);
-    console.log("Socket.rooms : ", socket.rooms);
     console.log("---------------------");
   });
+}
+
+export function videoIdUpdateListener(socket: Socket) {
+  socket.on("video-id-updated", ({ roomId, videoId }) => {
+    const room = roomsStore.get(roomId);
+
+    if (!room) return;
+
+    room.videoId = videoId;
+
+    const properRoomState = {
+      ...room,
+      members: Array.from(room.members.values()),
+    };
+
+    socket.nsp.to(roomId).emit("room-state-update", properRoomState);
+  });
+}
+
+export function playbackStatusUpdateListeners(socket: Socket) {
+  socket.on("play-video", ({ roomId, currentTime }) => {
+    // If already playing, do nothing
+    if (roomsStore.get(roomId)?.isPlaying === true) return;
+
+    const room = roomsStore.get(roomId);
+    if (!room) return;
+    room.isPlaying = true;
+    room.currentTime = currentTime;
+
+    const properRoomState = {
+      ...room,
+      members: Array.from(room.members.values()),
+    };
+
+    socket.nsp.to(roomId).emit("room-state-update", properRoomState);
+
+    const username = room.members.get(socket.id)?.username || " ";
+    socket.nsp.to(roomId).emit("interaction-update", {
+      type: "play",
+      time: currentTime,
+      username,
+    });
+  });
+
+  socket.on("pause-video", ({ roomId, currentTime }) => {
+    // If already paused, do nothing
+    if (roomsStore.get(roomId)?.isPlaying === false) return;
+
+    const room = roomsStore.get(roomId);
+    if (!room) return;
+
+    room.isPlaying = false;
+    room.currentTime = currentTime;
+
+    const properRoomState = {
+      ...room,
+      members: Array.from(room.members.values()),
+    };
+
+    socket.nsp.to(roomId).emit("room-state-update", properRoomState);
+
+    const username = room.members.get(socket.id)?.username || " ";
+    socket.nsp.to(roomId).emit("interaction-update", {
+      type: "pause",
+      time: currentTime,
+      username,
+    });
+  });
+
+  socket.on(
+    "interaction-update",
+    (interaction: Interaction, roomId: string) => {
+      socket.nsp.to(roomId).emit("interaction-update", interaction);
+    }
+  );
 }

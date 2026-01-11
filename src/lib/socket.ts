@@ -5,6 +5,8 @@ import {
   checkRoomExistsListener,
   createRoomListener,
   joinRoomListener,
+  playbackStatusUpdateListeners,
+  videoIdUpdateListener,
 } from "../logic/room.logic.js";
 import { roomsStore } from "../store/rooms.store.js";
 
@@ -16,12 +18,6 @@ export default function initSocket(server: HttpServer) {
   });
 
   io.on("connection", (socket) => {
-    console.log("\n---------------------");
-    console.log("a user connected", socket.id);
-    console.log("total rooms: ", roomsStore);
-    console.log("Total rooms in socket: ", socket.rooms.size);
-    console.log("Socket.rooms : ", socket.rooms);
-
     socket.on("disconnect", () => {
       console.log("user disconnected", socket.id);
       console.log("Total rooms in socket: ", socket.rooms.size);
@@ -38,6 +34,7 @@ export default function initSocket(server: HttpServer) {
             ...roomState,
             members: Array.from(roomState?.members.values() || []),
           };
+
           socket.nsp.to(roomId).emit("room-state-update", properRoomState);
           console.log(socket.id, "left room:", roomId);
         }
@@ -47,5 +44,7 @@ export default function initSocket(server: HttpServer) {
     createRoomListener(socket);
     joinRoomListener(socket);
     checkRoomExistsListener(socket);
+    videoIdUpdateListener(socket);
+    playbackStatusUpdateListeners(socket);
   });
 }
