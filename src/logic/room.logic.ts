@@ -9,7 +9,7 @@ import { roomsStore, type Member } from "../store/rooms.store.js";
 
 export function createRoomListener(socket: Socket) {
   socket.on("create-room", (data: CreateRoomData) => {
-    const { roomName, username } = data;
+    const { roomName } = data;
     const roomId = generateRoomId();
 
     roomsStore.set(roomId, {
@@ -18,12 +18,10 @@ export function createRoomListener(socket: Socket) {
       currentTime: 0,
       isPlaying: false,
       videoId: "Csy6Vd33cYI",
-      members: new Map<string, Member>([
-        [socket.id, { socketId: socket.id, username }],
-      ]),
+      members: new Map<string, Member>(),
     });
 
-    socket.join(roomId);
+    // socket.join(roomId);
 
     socket.emit("create-room-success", { roomId });
 
@@ -177,24 +175,27 @@ export function playbackStatusUpdateListeners(socket: Socket) {
     });
   });
 
+  socket.on("seek-video", ({ roomId, currentTime, username }) => {
+    console.log(username, "is seeked to ", currentTime);
+
+    const room = roomsStore.get(roomId);
+    if (!room) return;
+
+    room.currentTime = currentTime;
+
+    socket.broadcast.to(roomId).emit("seek-video", { currentTime });
+
+    socket.nsp.to(roomId).emit("interaction-update", {
+      type: "seek",
+      time: currentTime,
+      username,
+    });
+  });
+
   socket.on(
     "interaction-update",
     (interaction: Interaction, roomId: string) => {
       socket.nsp.to(roomId).emit("interaction-update", interaction);
     }
   );
-
-  socket.on("seek-video", ({ roomId, currentTime }) => {
-    const room = roomsStore.get(roomId);
-    if (!room) return;
-
-    room.currentTime = currentTime;
-
-    const properRoomState = {
-      ...room,
-      members: Array.from(room.members.values()),
-    };
-
-    socket.nsp.to(roomId).emit("room-state-update", properRoomState);
-  });
 }

@@ -1,8 +1,6 @@
-import type { Member } from "../store/rooms.store.js";
-
 export interface CreateRoomData {
   roomName: string;
-  username: string;
+  // username: string;
 }
 
 export interface JoinRoomData {
