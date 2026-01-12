@@ -9,6 +9,8 @@ import { roomsStore, type Member } from "../store/rooms.store.js";
 
 export function createRoomListener(socket: Socket) {
   socket.on("create-room", (data: CreateRoomData) => {
+    console.log("🔥 create-room listener HIT");
+    console.log("Process ID: ", process.pid);
     const { roomName } = data;
     const roomId = generateRoomId();
 
@@ -39,6 +41,7 @@ export function createRoomListener(socket: Socket) {
 
 export function joinRoomListener(socket: Socket) {
   socket.on("join-room", (data: JoinRoomData) => {
+    console.log("Process ID: ", process.pid);
     const { roomId, username } = data;
     const room = roomsStore.get(roomId);
 
@@ -76,6 +79,7 @@ export function joinRoomListener(socket: Socket) {
 
 export function leaveRoomListener(socket: Socket) {
   socket.on("leave-room", (roomId: string) => {
+    console.log("Process ID: ", process.pid);
     const room = roomsStore.get(roomId);
     if (!room) return;
 
@@ -98,6 +102,7 @@ export function leaveRoomListener(socket: Socket) {
 
 export function checkRoomExistsListener(socket: Socket) {
   socket.on("check-room-exists", (roomId: string) => {
+    console.log("Process ID: ", process.pid);
     const roomExists = roomsStore.has(roomId);
     socket.emit("room-exists-response", { roomId, exists: roomExists });
 
@@ -110,6 +115,7 @@ export function checkRoomExistsListener(socket: Socket) {
 
 export function videoIdUpdateListener(socket: Socket) {
   socket.on("video-id-updated", ({ roomId, videoId }) => {
+    console.log("Process ID: ", process.pid);
     const room = roomsStore.get(roomId);
 
     if (!room) return;
