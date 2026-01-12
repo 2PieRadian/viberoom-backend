@@ -65,7 +65,7 @@ export function joinRoomListener(socket: Socket) {
     // Logs
     console.log("---------------------");
     console.log(`${username} joined room: ${room.roomName}`);
-    console.log("Members: ", room.members);
+    // console.log("Members: ", room.members);
     console.log("Room State : ", properRoomState);
     console.log("---------------------");
     // console.log("User joined room: ", roomId, "with members: ", room.members);
@@ -91,7 +91,7 @@ export function leaveRoomListener(socket: Socket) {
     //Logs
     console.log("---------------------");
     console.log("User left room: ", roomId, "name: ", room.roomName);
-    console.log("Total rooms: ", getRoomCount());
+    // console.log("Total rooms: ", getRoomCount());
     console.log("---------------------");
   });
 }
