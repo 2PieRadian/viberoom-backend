@@ -183,4 +183,18 @@ export function playbackStatusUpdateListeners(socket: Socket) {
       socket.nsp.to(roomId).emit("interaction-update", interaction);
     }
   );
+
+  socket.on("seek-video", ({ roomId, currentTime }) => {
+    const room = roomsStore.get(roomId);
+    if (!room) return;
+
+    room.currentTime = currentTime;
+
+    const properRoomState = {
+      ...room,
+      members: Array.from(room.members.values()),
+    };
+
+    socket.nsp.to(roomId).emit("room-state-update", properRoomState);
+  });
 }
